@@ -1,0 +1,64 @@
+{
+  "builders": [
+    {
+      "type": "openstack",
+      "ssh_timeout": "1000s",
+      "identity_endpoint": "http://172.19.74.14:5000/v2.0",
+      "tenant_name": "admin",
+      "username": "admin",
+      "password": "mypass",
+      "region": "RegionOne",
+      "use_floating_ip": true,
+      "floating_ip_pool": "external",
+      "ssh_username": "ubuntu",
+      "image_name": "system-time-image",
+      "networks": ["bb4e2942-f3b2-47e2-b056-535fe0a6e128"],
+      "source_image": "8fd609df-1a9a-428a-9450-fc9caae90980",
+      "flavor": "m1.small",
+      "insecure": "true"
+    }
+  ],
+  "provisioners": [
+    {
+      "destination": "/tmp/apt.conf",
+      "source": "./environment",
+      "type": "file"
+    },
+    {
+      "type": "shell",
+      "execute_command": "echo '{{user `ubuntu`}}' | {{ .Vars }} sudo -E -S sh '{{ .Path }}'",
+      "inline": [
+        "mkdir -p /etc/apt && sudo touch /etc/apt/apt.conf",
+        "cp /tmp/apt.conf /etc/apt/apt.conf",
+        "apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --force-yes python2.7",
+	"apt-get install -y python-pip",
+        "mkdir -p /opt/dtedge/system-time"
+      ]
+    },
+    {
+      "destination": "/tmp/system-time.py",
+      "source": "./system-time.py",
+      "type": "file"
+    },
+    {
+      "destination": "/tmp/requirements.txt",
+      "source": "./requirements.txt",
+      "type": "file"
+    },
+    {
+      "type": "shell",
+      "execute_command": "echo '{{user `ubuntu`}}' | {{ .Vars }} sudo -E -S sh '{{ .Path }}'",
+      "inline": [
+        "cp /tmp/system-time.py /opt/dtedge/system-time/system-time.py",
+        "cp /tmp/requirements.txt /opt/dtedge/system-time/requirements.txt",
+	      "echo '#!/bin/bash' > /etc/rc.local",
+	      "echo 'nohup python /opt/dtedge/system-time/system-time.py > /var/log/system-time.log 2>&1 &' >> /etc/rc.local",
+	      "echo 'exit 0' >> /etc/rc.local",
+	      "export http_proxy=http://165.225.106.34:80",
+	      "export https_proxy=https://165.225.106.34:80",
+        "pip install -r /opt/dtedge/system-time/requirements.txt",
+	      "unset http_proxy https_proxy"
+      ]
+    }
+  ]
+}
